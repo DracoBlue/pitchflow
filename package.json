@@ -1,0 +1,42 @@
+{
+  "name": "pitchflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "3D-Rhythmusspiel im Browser, gespielt mit einer echten Gitarre über das Mikrofon.",
+  "license": "MIT",
+  "homepage": "https://github.com/DracoBlue/pitchflow",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DracoBlue/pitchflow.git"
+  },
+  "scripts": {
+    "build:worklet": "esbuild src/audio/pitch-worklet.ts --bundle --format=esm --outfile=public/worklet/pitch-processor.js",
+    "predev": "pnpm build:worklet",
+    "dev": "next dev",
+    "prebuild": "pnpm build:worklet",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.6.1",
+    "next": "16.2.9",
+    "pitchy": "^4.1.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "three": "^0.184.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.184.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
