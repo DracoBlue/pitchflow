@@ -55,7 +55,7 @@ Without the file you simply get the built-in songs.
 
 ## Quick start
 
-Requirements: Node 20+ and [pnpm](https://pnpm.io/).
+Requirements: Node 22.13+ (required by pnpm 11) and [pnpm](https://pnpm.io/).
 
 ```bash
 pnpm install
@@ -65,11 +65,30 @@ pnpm dev
 Then open <http://localhost:3000>, allow microphone access, and play a note.
 Microphone access only works over **HTTPS or localhost**.
 
-Test PWA behavior (service worker, installability) only in a production build:
+Test PWA behavior (service worker, installability) only in a production build.
+The app is exported as static HTML to `out/`, so it's served by a static server
+rather than `next start`:
 
 ```bash
-pnpm build && pnpm start
+pnpm build && pnpm start   # builds, then serves out/ at http://localhost:3000
 ```
+
+## Deployment (GitHub Pages)
+
+The app is a fully static export (`output: "export"` → `out/`) and ships via GitHub
+Actions to GitHub Pages — see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+On every push to `main` the workflow builds and publishes the site.
+
+Because Pages serves the project under a sub-path
+(`https://<user>.github.io/pitchflow/`), the build sets `NEXT_PUBLIC_BASE_PATH=/pitchflow`.
+That base path is applied to all assets, the AudioWorklet, the service worker, the
+manifest icons and the optional `songs.json`. For local development the variable is
+empty, so everything stays at `/`.
+
+One-time setup: in the repository settings under **Settings → Pages**, set the source to
+**GitHub Actions**. (If your repo name differs from `pitchflow`, change
+`NEXT_PUBLIC_BASE_PATH` in the workflow accordingly; for a `<user>.github.io` repo or a
+custom domain, set it to empty.)
 
 ## How it works
 
