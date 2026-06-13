@@ -4,6 +4,7 @@
   "private": true,
   "description": "3D-Rhythmusspiel im Browser, gespielt mit einer echten Gitarre über das Mikrofon.",
   "license": "MIT",
+  "packageManager": "pnpm@11.1.2",
   "homepage": "https://github.com/DracoBlue/pitchflow",
   "repository": {
     "type": "git",
@@ -15,7 +16,7 @@
     "dev": "next dev",
     "prebuild": "pnpm build:worklet",
     "build": "next build",
-    "start": "next start",
+    "start": "pnpm dlx serve out -l 3000",
     "lint": "eslint"
   },
   "dependencies": {

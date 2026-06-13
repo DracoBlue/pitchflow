@@ -17,6 +17,8 @@
  *     ]
  *   }
  */
+import { BASE_PATH } from "@/basePath";
+
 import { melody, type Chart, type Difficulty } from "./chart";
 
 type ExternalNote = { note: string; string?: number; beats?: number };
@@ -48,7 +50,7 @@ function toChart(song: ExternalSong): Chart | null {
 
 export async function loadExternalCharts(): Promise<Chart[]> {
   try {
-    const res = await fetch("/songs.json", { cache: "no-store" });
+    const res = await fetch(`${BASE_PATH}/songs.json`, { cache: "no-store" });
     if (!res.ok) return [];
     const data: unknown = await res.json();
     const songs = Array.isArray(data)

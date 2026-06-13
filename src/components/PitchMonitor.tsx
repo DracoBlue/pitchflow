@@ -5,6 +5,7 @@
  * Shows detected note, frequency, clarity and level straight from the
  * AudioWorklet, with adjustable noise-gate thresholds for real-guitar testing.
  */
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { startMicPitchStream, type MicPitchStream } from "@/audio/micStream";
@@ -117,12 +118,12 @@ export default function PitchMonitor() {
         <h1 className="text-xl font-semibold tracking-tight">
           Pitchflow <span className="text-zinc-500">· Tuner</span>
         </h1>
-        <a
+        <Link
           href="/play"
           className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
         >
           Spielen →
-        </a>
+        </Link>
         <button
           onClick={running ? stop : start}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${

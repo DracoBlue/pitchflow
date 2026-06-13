@@ -25,8 +25,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Immutable build assets: cache-first.
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  // Immutable build assets: cache-first. includes() statt startsWith(), damit
+  // es auch unter einem basePath (z.B. /pitchflow) greift.
+  if (url.pathname.includes("/_next/static/") || url.pathname.includes("/icons/")) {
     event.respondWith(
       (async () => {
         const cached = await caches.match(request);
