@@ -5,9 +5,16 @@ import type { Chart } from "./chart";
 export type NoteState = "pending" | "hit" | "missed";
 export type GameStatus = "idle" | "running" | "finished";
 
+import { create } from "zustand";
+
+import type { Chart } from "./chart";
+
+export type NoteState = "pending" | "hit" | "missed";
+export type GameStatus = "idle" | "running" | "finished";
+
 export type Judgement = {
   noteIndex: number;
-  result: "hit" | "miss";
+  result: "perfect" | "good" | "miss";
   /** Spielzeit (Audio-Uhr) des Urteils, für zeitlich begrenzte HUD-Einblendungen. */
   atTime: number;
 };
@@ -20,7 +27,7 @@ type GameStore = {
   combo: number;
   lastJudgement: Judgement | null;
   start: (chart: Chart) => void;
-  judge: (noteIndex: number, result: "hit" | "miss", atTime: number) => void;
+  judge: (noteIndex: number, result: "perfect" | "good" | "miss", atTime: number) => void;
   reset: () => void;
 };
 
@@ -46,12 +53,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { noteStates, score, combo } = get();
     if (noteStates[noteIndex] !== "pending") return;
     const next = [...noteStates];
-    next[noteIndex] = result === "hit" ? "hit" : "missed";
+    next[noteIndex] = result === "miss" ? "missed" : "hit";
     const finished = next.every((s) => s !== "pending");
+    
+    let points = 0;
+    let comboBonus = 0;
+    
+    if (result === "perfect") {
+      points = 200;
+      comboBonus = 1;
+    } else if (result === "good") {
+      points = 100;
+      comboBonus = 1;
+    } else {
+      points = 0;
+      comboBonus = 0;
+    }
+
     set({
       noteStates: next,
-      score: result === "hit" ? score + 100 : score,
-      combo: result === "hit" ? combo + 1 : 0,
+      score: score + points,
+      combo: result === "miss" ? 0 : combo + comboBonus,
       lastJudgement: { noteIndex, result, atTime },
       status: finished ? "finished" : "running",
     });
