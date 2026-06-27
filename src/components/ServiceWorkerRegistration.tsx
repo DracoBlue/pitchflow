@@ -5,9 +5,9 @@ import { useEffect } from "react";
 import { BASE_PATH } from "@/basePath";
 
 /**
- * Registriert <basePath>/sw.js — nur im Production-Build, damit der Cache
- * beim Entwickeln nicht dazwischenfunkt. PWA-Verhalten daher mit
- * `pnpm build && pnpm start` testen.
+ * Registers <basePath>/sw.js — only in the production build, so the cache
+ * doesn't interfere during development. Test PWA behavior with
+ * `pnpm build && pnpm start`.
  */
 export default function ServiceWorkerRegistration() {
   useEffect(() => {

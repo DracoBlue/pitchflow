@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * 3D-Szene: sechs Lanes (links = Saite 6/E2 … rechts = Saite 1/E4) mit
- * Trefferlinie, Noten fliegen auf ihrer Saiten-Lane heran.
- * Positionen werden pro Frame aus der Audio-Uhr berechnet (clock.now()),
- * nie aus Frame-Zählern — rAF rendert nur, die Audio-Uhr bestimmt wo.
+ * 3D scene: six lanes (left = string 6/E2 … right = string 1/E4) with a
+ * hit line; notes fly in along their string's lane.
+ * Positions are computed per frame from the audio clock (clock.now()),
+ * never from frame counters — rAF only renders, the audio clock decides where.
  */
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import type { Group } from "three";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Group, Mesh } from "three";
 
 import { fretForNote, stringNumberForNote } from "@/audio/noteMapper";
 import type { ChartNote } from "@/game/chart";
@@ -16,20 +16,20 @@ import type { GameClock } from "@/game/clock";
 import { useGameStore } from "@/game/store";
 import { noteLabelTexture } from "./noteLabelTexture";
 
-/** Einheiten pro Sekunde Richtung Trefferlinie. */
+/** Units per second toward the hit line. */
 const SPEED = 6;
-/** Noten werden so viele Sekunden vor ihrer Zielzeit sichtbar. */
+/** Notes become visible this many seconds before their target time. */
 const LOOKAHEAD_S = 4;
 const LANE_COUNT = 6;
 const LANE_WIDTH = 0.85;
-/** Länge eines kurzen Blocks (Note ohne Dauer) entlang der Lane. */
+/** Length of a short block (note without duration) along the lane. */
 const DEFAULT_DEPTH = 0.5;
-/** Block-Höhe (flach). */
+/** Block height (flat). */
 const BLOCK_HEIGHT = 0.12;
 const TOTAL_WIDTH = LANE_COUNT * LANE_WIDTH;
 const LANE_LENGTH = LOOKAHEAD_S * SPEED + 4;
 
-/** Farben pro Saite (6 = tiefes E … 1 = hohes E). */
+/** Colors per string (6 = low E … 1 = high E). */
 const STRING_COLORS: Record<number, string> = {
   6: "#ef4444",
   5: "#eab308",
@@ -39,12 +39,12 @@ const STRING_COLORS: Record<number, string> = {
   1: "#a855f7",
 };
 
-/** Saite der Note (aus Chart oder offener Saite), Fallback tiefe E-Saite. */
+/** The note's string (from chart or open string), fallback low E string. */
 function stringForNote(note: ChartNote): number {
   return note.string ?? stringNumberForNote(note.note) ?? 6;
 }
 
-/** Lane 0 (links) = Saite 6 … Lane 5 (rechts) = Saite 1. */
+/** Lane 0 (left) = string 6 … Lane 5 (right) = string 1. */
 const laneX = (stringNumber: number) =>
   (6 - stringNumber - (LANE_COUNT - 1) / 2) * LANE_WIDTH;
 
@@ -65,8 +65,8 @@ function NoteObject({
     [note.note, stringNumber]
   );
 
-  // Block-Länge aus der Notendauer; die Vorderkante (Strike-Ende) trifft die
-  // Linie zum Onset, der Schwanz steht für die Haltedauer dahinter.
+  // Block length from the note duration; the front edge (strike end) meets the
+  // line at onset, the tail represents the hold duration behind it.
   const depth = note.duration != null ? Math.max(DEFAULT_DEPTH, note.duration * SPEED * 0.8) : DEFAULT_DEPTH;
   const zOffset = (DEFAULT_DEPTH - depth) / 2;
   const labelZ = Math.max(-0.05, depth / 2 - 0.3);
@@ -74,14 +74,17 @@ function NoteObject({
   useFrame(() => {
     const group = groupRef.current;
     if (!group) return;
-    const dt = note.time - clock.now(); // Sekunden bis zur Trefferlinie
-    // Getroffene Noten kurz nach der Linie ausblenden, sonst rauschen sie
-    // riesig an der Kamera vorbei; verfehlte sinken etwas länger sichtbar ab.
+    const dt = note.time - clock.now(); // seconds until the hit line
+    // Hide hit notes shortly after the line, otherwise they whoosh past the
+    // camera huge; missed ones sink away visible a bit longer.
     group.visible = dt < LOOKAHEAD_S && dt > (state === "hit" ? -0.3 : -0.8);
     group.position.z = -dt * SPEED + zOffset;
-    // Getroffene Noten heben ab, verfehlte sinken durch die Lane.
+    // Hit notes lift off, missed ones sink through the lane.
     group.position.y =
       state === "hit" ? 0.3 + Math.min(1.5, -dt * 2) : state === "missed" && dt < 0 ? 0.3 + dt : 0.3;
+    // Hit pop: briefly swell at the moment of the hit, then fade out.
+    const pop = state === "hit" ? Math.max(0, 0.6 + dt * 2) : 0;
+    group.scale.setScalar(1 + pop);
   });
 
   const color = state === "missed" ? "#71717a" : STRING_COLORS[stringNumber];
@@ -98,11 +101,11 @@ function NoteObject({
           opacity={state === "missed" ? 0.45 : 1}
         />
       </mesh>
-      {/* Beschriftung vorn auf dem Block, leicht zur Kamera geneigt */}
+      {/* Label stands upright above the block, slightly tilted toward the camera */}
       {label && (
-        <mesh position={[0, BLOCK_HEIGHT / 2 + 0.02, labelZ]} rotation={[-Math.PI / 2 + 0.5, 0, 0]}>
+        <mesh position={[0, BLOCK_HEIGHT / 2 + 0.2, labelZ]} rotation={[-0.4, 0, 0]}>
           <planeGeometry args={[0.6, 0.32]} />
-          <meshBasicMaterial map={label} transparent depthWrite={false} />
+          <meshBasicMaterial map={label} transparent depthWrite={false} side={2} />
         </mesh>
       )}
     </group>
@@ -116,7 +119,7 @@ function HitLine() {
         <boxGeometry args={[TOTAL_WIDTH + 0.3, 0.05, 0.1]} />
         <meshStandardMaterial color="#34d399" emissive="#34d399" emissiveIntensity={1.2} />
       </mesh>
-      {/* Farbmarker pro Lane auf der Trefferlinie */}
+      {/* Color marker per lane on the hit line */}
       {Array.from({ length: LANE_COUNT }, (_, lane) => {
         const stringNumber = 6 - lane;
         return (
@@ -141,7 +144,7 @@ function Lanes() {
         <planeGeometry args={[TOTAL_WIDTH + 0.2, LANE_LENGTH + 6]} />
         <meshStandardMaterial color="#18181b" />
       </mesh>
-      {/* Trennlinien zwischen den Lanes */}
+      {/* Divider lines between the lanes */}
       {Array.from({ length: LANE_COUNT + 1 }, (_, i) => (
         <mesh
           key={i}
@@ -153,6 +156,100 @@ function Lanes() {
       ))}
       <HitLine />
     </group>
+  );
+}
+
+// ─── Particle effect on hit ────────────────────────────────────────────────
+
+const BURST_LIFE_S = 0.6;
+
+type Burst = { id: number; x: number; color: string; strong: boolean };
+
+function HitBurst({ x, color, strong, onDone }: Burst & { onDone: () => void }) {
+  const groupRef = useRef<Group>(null);
+  const startRef = useRef<number | null>(null);
+  const doneRef = useRef(false);
+
+  // Fixed scatter directions per particle (perfect throws more & farther).
+  const seeds = useMemo(() => {
+    const count = strong ? 18 : 11;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * Math.PI * 2 + i * 1.3;
+      const spread = 1.4 + ((i * 37) % 100) / 100 * (strong ? 2.4 : 1.6);
+      return {
+        vx: Math.cos(angle) * spread,
+        vy: 2 + ((i * 53) % 100) / 100 * (strong ? 3.5 : 2.2),
+        vz: Math.sin(angle) * spread * 0.6,
+        size: 0.035 + ((i * 29) % 100) / 100 * 0.05,
+      };
+    });
+  }, [strong]);
+
+  useFrame((state) => {
+    const group = groupRef.current;
+    if (!group) return;
+    if (startRef.current === null) startRef.current = state.clock.elapsedTime;
+    const t = state.clock.elapsedTime - startRef.current;
+    const progress = t / BURST_LIFE_S;
+    if (progress >= 1) {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        onDone();
+      }
+      return;
+    }
+    group.children.forEach((child, i) => {
+      const s = seeds[i];
+      // Ballistic trajectory: up and apart, then pulled down by gravity.
+      child.position.set(s.vx * t, s.vy * t - 6 * t * t, s.vz * t);
+      const mat = (child as Mesh).material;
+      if (!Array.isArray(mat)) mat.opacity = 1 - progress;
+    });
+  });
+
+  return (
+    <group ref={groupRef} position={[x, 0.3, 0]}>
+      {seeds.map((s, i) => (
+        <mesh key={i}>
+          <sphereGeometry args={[s.size, 6, 6]} />
+          <meshBasicMaterial color={color} transparent />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Listens for new hit judgements and spawns a particle burst for each. */
+function HitBursts() {
+  const [bursts, setBursts] = useState<Burst[]>([]);
+  const idRef = useRef(0);
+
+  useEffect(() => {
+    return useGameStore.subscribe((s, prev) => {
+      const j = s.lastJudgement;
+      if (!j || j === prev.lastJudgement || j.result === "miss") return;
+      const note = s.chart?.notes[j.noteIndex];
+      if (!note) return;
+      const stringNumber = stringForNote(note);
+      const id = idRef.current++;
+      setBursts((list) => [
+        ...list,
+        { id, x: laneX(stringNumber), color: STRING_COLORS[stringNumber], strong: j.result === "perfect" },
+      ]);
+    });
+  }, []);
+
+  const remove = useCallback(
+    (id: number) => setBursts((list) => list.filter((b) => b.id !== id)),
+    []
+  );
+
+  return (
+    <>
+      {bursts.map((b) => (
+        <HitBurst key={b.id} {...b} onDone={() => remove(b.id)} />
+      ))}
+    </>
   );
 }
 
@@ -172,6 +269,7 @@ export default function GameCanvas({ clock }: { clock: GameClock }) {
       {chart?.notes.map((note, index) => (
         <NoteObject key={index} note={note} index={index} clock={clock} />
       ))}
+      <HitBursts />
     </Canvas>
   );
 }

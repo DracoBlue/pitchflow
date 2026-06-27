@@ -144,8 +144,8 @@ Web Audio API / AudioWorklet · [react-three-fiber](https://r3f.docs.pmnd.rs/) +
 - [x] **M0** — pitch-detection proof (tuner, validated with a real guitar)
 - [x] **M1** — PWA scaffold (manifest, service worker, icons)
 - [x] **M2** — string lanes, flying notes, hit/miss detection, song selection
-- [ ] **M3** — graded scoring (Perfect/Good), more levels, real rhythms
-- [ ] **M4** — 3D polish (hit animations, particles, tuning screen)
+- [x] **M3** — graded scoring (Perfect/Good), more levels, real rhythms
+- [x] **M4** — 3D polish (hit animations, particles, tuning screen)
 
 ## License
 

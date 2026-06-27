@@ -1,20 +1,20 @@
-/** Level-Definition: Noten mit Zielzeit (Sekunden ab Spielstart). */
+/** Level definition: notes with target time (seconds from game start). */
 export type ChartNote = {
-  /** Zeitpunkt in Sekunden, zu dem die Note die Trefferlinie erreicht. */
+  /** Time in seconds at which the note reaches the hit line. */
   time: number;
-  /** Zielton, z.B. "E2". */
+  /** Target note, e.g. "E2". */
   note: string;
   /**
-   * Saite 6 (tiefes E) … 1 (hohes E). Bestimmt die Lane.
-   * Für offene Saiten optional (wird aus dem Ton ermittelt), für gegriffene
-   * Töne Pflicht, weil die Tonhöhe allein die Saite nicht festlegt.
+   * String 6 (low E) … 1 (high E). Determines the lane.
+   * Optional for open strings (derived from the note), required for fretted
+   * notes, since pitch alone does not fix the string.
    */
   string?: number;
-  /** Klingende Länge in Sekunden — bestimmt die Block-Länge. Fehlt = kurz. */
+  /** Sounding length in seconds — determines the block length. Absent = short. */
   duration?: number;
 };
 
-/** 1 = Einstieg … 4 = Fortgeschritten. */
+/** 1 = beginner … 4 = advanced. */
 export type Difficulty = 1 | 2 | 3 | 4;
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
@@ -27,14 +27,14 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
 export type Chart = {
   id: string;
   title: string;
-  /** Kurze Beschreibung für die Liedauswahl. */
+  /** Short description for the song selection. */
   description: string;
   difficulty: Difficulty;
   bpm: number;
   notes: ChartNote[];
 };
 
-/** Gleichmäßige Notenfolge ab Startzeit (uniformes Tempo = anfängerfreundlich). */
+/** Even note sequence from start time (uniform tempo = beginner-friendly). */
 function sequence(
   startTime: number,
   spacing: number,
@@ -52,21 +52,21 @@ const OPEN_STRINGS = [
   { note: "E4" },
 ];
 
-/** Melodien im C4–A4-Bereich: C/D auf der B-Saite (2), Rest auf der hohen E-Saite (1). */
+/** Melodies in the C4–A4 range: C/D on the B string (2), rest on the high E string (1). */
 const hi = (note: string): { note: string; string: number } => ({
   note,
   string: note === "C4" || note === "D4" ? 2 : 1,
 });
 
-/** Tuples [Ton, Saite] → ChartNote-Eingaben. */
+/** Tuples [note, string] → ChartNote inputs. */
 const tuples = (pairs: Array<[string, number]>) =>
   pairs.map(([note, string]) => ({ note, string }));
 
 /**
- * Taktbasierte Notenfolge: jede Note hat eine Länge in Schlägen (beats),
- * Standard 1. Onset-Zeiten und Dauer ergeben sich aus dem Tempo — so wird
- * eine „lange" Note (z.B. beats: 2) automatisch zum längeren Block und der
- * nächste Ton kommt entsprechend später.
+ * Beat-based note sequence: each note has a length in beats, default 1.
+ * Onset times and duration derive from the tempo — so a "long" note
+ * (e.g. beats: 2) automatically becomes a longer block and the next note
+ * comes correspondingly later.
  */
 export function melody(
   startTime: number,
@@ -87,7 +87,7 @@ export function melody(
   });
 }
 
-// ─── Stufe 1: Einstieg — nur leere Saiten ──────────────────────────────────
+// ─── Level 1: Beginner — open strings only ─────────────────────────────────
 
 const LEERSAITEN_DRILL: Chart = {
   id: "leersaiten-drill",
@@ -116,9 +116,9 @@ const E_A_WECHSEL: Chart = {
   ]),
 };
 
-// ─── Stufe 2: Leicht — wenige Töne, ein bis zwei Saiten ─────────────────────
+// ─── Level 2: Easy — few notes, one or two strings ──────────────────────────
 
-// Drei Töne, alle auf der G-Saite (G3 offen, A3 2. Bund, B3 4. Bund).
+// Three notes, all on the G string (G3 open, A3 2nd fret, B3 4th fret).
 const HOT_CROSS_BUNS: Chart = {
   id: "hot-cross-buns",
   title: "Hot Cross Buns",
@@ -148,7 +148,7 @@ const MARY_LAMB: Chart = {
   ),
 };
 
-// ─── Stufe 3: Mittel — vollständige Melodien ────────────────────────────────
+// ─── Level 3: Medium — complete melodies ────────────────────────────────────
 
 const ALLE_MEINE_ENTCHEN: Chart = {
   id: "alle-meine-entchen",
@@ -180,7 +180,7 @@ const TWINKLE: Chart = {
   ),
 };
 
-// Erste Zeile „Ode an die Freude" (Beethoven, gemeinfrei).
+// First line of "Ode an die Freude" (Beethoven, public domain).
 const ODE_AN_DIE_FREUDE: Chart = {
   id: "ode-an-die-freude",
   title: "Ode an die Freude",
@@ -194,9 +194,9 @@ const ODE_AN_DIE_FREUDE: Chart = {
   ),
 };
 
-// ─── Stufe 4: Fortgeschritten — Tonleitern über mehrere Saiten ──────────────
+// ─── Level 4: Advanced — scales across multiple strings ─────────────────────
 
-// Klassische C-Dur-Tonleiter in der ersten Lage, hoch und runter (Saiten 5–2).
+// Classic C major scale in first position, up and down (strings 5–2).
 const C_DUR_TONLEITER: Chart = {
   id: "c-dur-tonleiter",
   title: "C-Dur-Tonleiter",
@@ -213,7 +213,7 @@ const C_DUR_TONLEITER: Chart = {
   ),
 };
 
-// E-Moll-Pentatonik (die „Rock-Tonleiter"), offene Lage über alle sechs Saiten.
+// E minor pentatonic (the "rock scale"), open position across all six strings.
 const EM_PENTATONIK: Chart = {
   id: "em-pentatonik",
   title: "E-Moll-Pentatonik",
@@ -232,10 +232,100 @@ const EM_PENTATONIK: Chart = {
   ),
 };
 
+// ─── Rhythm levels: variable note lengths via melody() ──────────────────────
+
+// Deliberate rhythm trainer on the two low strings: quarters, halves,
+// eighths alternating — the pulse stays, the lengths change.
+const RHYTHMUS_DRILL: Chart = {
+  id: "rhythmus-drill",
+  title: "Rhythmus-Drill",
+  description: "E- und A-Saite mit wechselnden Notenlängen — Gefühl für Timing.",
+  difficulty: 2,
+  bpm: 80,
+  notes: melody(2, 0.55, [
+    { note: "E2", beats: 1 }, { note: "E2", beats: 1 }, { note: "A2", beats: 2 },
+    { note: "E2", beats: 0.5 }, { note: "E2", beats: 0.5 }, { note: "A2", beats: 1 }, { note: "A2", beats: 2 },
+    { note: "E2", beats: 1 }, { note: "A2", beats: 0.5 }, { note: "A2", beats: 0.5 }, { note: "E2", beats: 2 },
+    { note: "A2", beats: 0.5 }, { note: "A2", beats: 0.5 }, { note: "E2", beats: 0.5 }, { note: "E2", beats: 0.5 }, { note: "A2", beats: 2 },
+  ]),
+};
+
+// "Bruder Jakob" (public domain) as a canon melody with real rhythm:
+// eighths in the "ding ding dong" run, halves at the phrase end.
+const j = (note: string, beats?: number) => ({ ...hi(note), beats });
+const BRUDER_JAKOB: Chart = {
+  id: "bruder-jakob",
+  title: "Bruder Jakob",
+  description: "Bekannter Kanon mit echtem Rhythmus — Achtel und Halbe gemischt.",
+  difficulty: 3,
+  bpm: 90,
+  notes: melody(2, 0.7, [
+    // "Bruder Jakob" (×2)
+    j("C4"), j("D4"), j("E4"), j("C4"),
+    j("C4"), j("D4"), j("E4"), j("C4"),
+    // "Schläfst du noch?" (×2)
+    j("E4"), j("F4"), j("G4", 2),
+    j("E4"), j("F4"), j("G4", 2),
+    // "Ding ding dong" (×2)
+    j("G4", 0.5), j("A4", 0.5), j("G4", 0.5), j("F4", 0.5), j("E4"), j("C4"),
+    j("G4", 0.5), j("A4", 0.5), j("G4", 0.5), j("F4", 0.5), j("E4"), j("C4"),
+    // "Bim bam bum" (×2)
+    j("C4"), { note: "G3", string: 3, beats: 1 }, j("C4", 2),
+    j("C4"), { note: "G3", string: 3, beats: 1 }, j("C4", 2),
+  ]),
+};
+
+// ─── Vogelfänger (Mozart KV 620, public domain) ─────────────────────────────
+
+// "Der Vogelfänger bin ich ja" — vocal melody (notes 1–40), G major, 1st position.
+const VOGELFAENGER: Chart = {
+  id: "vogelfaenger",
+  title: "Der Vogelfänger",
+  description: "Papageno-Arie (Mozart KV 620). Gesangsmelodie, G-Dur, 1. Lage.",
+  difficulty: 3,
+  bpm: 133,
+  notes: melody(2, 0.45, [
+    { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "G3", string: 3 },
+    { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "F#3", string: 4 }, { note: "G3", string: 3 },
+    { note: "A3", string: 3 }, { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "A3", string: 3 },
+    { note: "F#3", string: 4 }, { note: "D3", string: 4 }, { note: "D3", string: 4 }, { note: "D4", string: 2 },
+    { note: "D4", string: 2 }, { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "G3", string: 3 },
+    { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "F#3", string: 4 },
+    { note: "G3", string: 3 }, { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "F#3", string: 4 },
+    { note: "G3", string: 3 }, { note: "A3", string: 3 }, { note: "B3", string: 2 }, { note: "A3", string: 3 },
+    { note: "A3", string: 3 }, { note: "D4", string: 2 }, { note: "D4", string: 2 }, { note: "A3", string: 3 },
+    { note: "A3", string: 3 }, { note: "F#3", string: 4 }, { note: "E3", string: 4 }, { note: "D3", string: 4 },
+  ]),
+};
+
+// The instrumental interlude of the aria (notes 41–89).
+const VOGELFAENGER_ZWISCHENSPIEL: Chart = {
+  id: "vogelfaenger-zwischenspiel",
+  title: "Der Vogelfänger – Zwischenspiel",
+  description: "Das instrumentale Zwischenspiel der Papageno-Arie (Mozart KV 620).",
+  difficulty: 4,
+  bpm: 133,
+  notes: melody(2, 0.45, [
+    { note: "D3", string: 4 }, { note: "F#3", string: 4 }, { note: "A3", string: 3 }, { note: "A3", string: 3 },
+    { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "A3", string: 3 },
+    { note: "B3", string: 2 }, { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "D4", string: 2 },
+    { note: "F#3", string: 4 }, { note: "F#3", string: 4 }, { note: "A3", string: 3 }, { note: "G3", string: 3 },
+    { note: "F#3", string: 4 }, { note: "G3", string: 3 }, { note: "A3", string: 3 }, { note: "B3", string: 2 },
+    { note: "A3", string: 3 }, { note: "G3", string: 3 }, { note: "A3", string: 3 }, { note: "B3", string: 2 },
+    { note: "C4", string: 2 }, { note: "D4", string: 2 }, { note: "G3", string: 3 }, { note: "A3", string: 3 },
+    { note: "B3", string: 2 }, { note: "B3", string: 2 }, { note: "C4", string: 2 }, { note: "B3", string: 2 },
+    { note: "A3", string: 3 }, { note: "B3", string: 2 }, { note: "C4", string: 2 }, { note: "D4", string: 2 },
+    { note: "E4", string: 1 }, { note: "C4", string: 2 }, { note: "A3", string: 3 }, { note: "F#3", string: 4 },
+    { note: "F#3", string: 4 }, { note: "G3", string: 3 }, { note: "F#3", string: 4 }, { note: "E3", string: 4 },
+    { note: "F#3", string: 4 }, { note: "G3", string: 3 }, { note: "A3", string: 3 }, { note: "F#3", string: 4 },
+    { note: "G3", string: 3 },
+  ]),
+};
+
 /**
- * Skaliert ein Chart auf ein Tempo: speed > 1 schneller (Noten näher
- * zusammen), speed < 1 langsamer (mehr Luft zwischen den Tönen).
- * Trefferfenster (in Sekunden) bleiben konstant — langsamer = mehr Ruhe.
+ * Scales a chart to a tempo: speed > 1 faster (notes closer together),
+ * speed < 1 slower (more air between the notes).
+ * Hit windows (in seconds) stay constant — slower = more calm.
  */
 export function scaleChartSpeed(chart: Chart, speed: number): Chart {
   if (speed === 1) return chart;
@@ -254,9 +344,13 @@ export const CHARTS: Chart[] = [
   E_A_WECHSEL,
   HOT_CROSS_BUNS,
   MARY_LAMB,
+  RHYTHMUS_DRILL,
   ALLE_MEINE_ENTCHEN,
   TWINKLE,
   ODE_AN_DIE_FREUDE,
+  BRUDER_JAKOB,
+  VOGELFAENGER,
+  VOGELFAENGER_ZWISCHENSPIEL,
   C_DUR_TONLEITER,
   EM_PENTATONIK,
 ];

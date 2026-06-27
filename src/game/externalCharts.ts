@@ -1,12 +1,12 @@
 /**
- * Lädt zusätzliche Lieder aus einer lokalen, NICHT committeten Datei
- * `public/songs.json` (in .gitignore). So bleiben rechtlich geschützte
- * Melodien aus dem öffentlichen Repo heraus, sind lokal aber spielbar.
+ * Loads additional songs from a local, NOT committed file
+ * `public/songs.json` (in .gitignore). This keeps legally protected
+ * melodies out of the public repo while still playable locally.
  *
- * Wird die Datei nicht gefunden (oder ist sie kaputt), gibt es eben nur die
- * eingebauten, gemeinfreien Lieder aus chart.ts.
+ * If the file is not found (or is broken), only the built-in,
+ * public-domain songs from chart.ts are available.
  *
- * Autoring-Format (taktbasiert, gleiche Logik wie `melody()`):
+ * Authoring format (beat-based, same logic as `melody()`):
  *   {
  *     "songs": [
  *       {

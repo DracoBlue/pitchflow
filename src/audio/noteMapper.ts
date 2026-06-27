@@ -35,7 +35,7 @@ const NOTE_OFFSETS: Record<string, number> = {
   C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11,
 };
 
-/** "E2", "F#3", "Bb1" → MIDI note number, null wenn nicht parsebar. */
+/** "E2", "F#3", "Bb1" → MIDI note number, null if not parsable. */
 export function parseNote(label: string): number | null {
   const match = /^([A-G])(#|b)?(-?\d)$/.exec(label.trim());
   if (!match) return null;
@@ -55,14 +55,14 @@ export const GUITAR_STRINGS = [
   { string: 1, label: "E4", frequency: 329.63 },
 ] as const;
 
-/** Saitennummer (6 = tiefe E-Saite … 1 = hohe E-Saite) für offene Saiten, sonst null. */
+/** String number (6 = low E string … 1 = high E string) for open strings, otherwise null. */
 export function stringNumberForNote(label: string): number | null {
   return GUITAR_STRINGS.find((s) => s.label === label)?.string ?? null;
 }
 
 /**
- * Bund, in dem der Ton auf der gegebenen Saite gegriffen wird
- * (0 = leere Saite), null wenn der Ton dort nicht spielbar ist.
+ * Fret at which the note is fingered on the given string
+ * (0 = open string), null if the note is not playable there.
  */
 export function fretForNote(label: string, stringNumber: number): number | null {
   const open = GUITAR_STRINGS.find((s) => s.string === stringNumber);

@@ -1,8 +1,8 @@
 /**
- * Canvas-Texturen für die Beschriftung der Noten-Blöcke:
- * Bund groß (0 = leere Saite), Notenname klein darunter.
- * Bewusst ohne 3D-Text-Lib (troika lädt Fonts zur Laufzeit nach — schlecht
- * für die PWA). Texturen werden pro Label gecacht.
+ * Canvas textures for labeling the note blocks:
+ * fret large (0 = open string), note name small below.
+ * Deliberately without a 3D text lib (troika fetches fonts at runtime — bad
+ * for the PWA). Textures are cached per label.
  */
 import { CanvasTexture, SRGBColorSpace } from "three";
 
@@ -30,7 +30,7 @@ export function noteLabelTexture(note: string, fret: number | null): CanvasTextu
   };
 
   if (fret !== null) {
-    // Bund dominant und groß — das ist die Information, die man beim Greifen braucht.
+    // Fret dominant and large — this is the information needed when fretting.
     ctx.fillStyle = "#ffffff";
     drawLine(String(fret), 104, 215);
     ctx.fillStyle = "#a1a1aa";

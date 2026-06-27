@@ -1,13 +1,13 @@
 /**
- * Master-Clock des Spiels = audioContext.currentTime.
- * Alle Notenpositionen und Trefferfenster rechnen gegen diese Uhr,
- * nie gegen requestAnimationFrame — die Audio-Uhr driftet nicht.
+ * Master clock of the game = audioContext.currentTime.
+ * All note positions and hit windows compute against this clock,
+ * never against requestAnimationFrame — the audio clock does not drift.
  */
 export type GameClock = {
   context: AudioContext;
-  /** Kontextzeit, bei der Chart-Zeit 0 die Trefferlinie erreicht. */
+  /** Context time at which chart time 0 reaches the hit line. */
   startAt: number;
-  /** Aktuelle Spielzeit in Sekunden (negativ während des Countdowns). */
+  /** Current game time in seconds (negative during the countdown). */
   now(): number;
 };
 

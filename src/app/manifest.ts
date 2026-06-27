@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { BASE_PATH } from "@/basePath";
 
-// Manifest als statische Datei erzeugen (nötig für output: export).
+// Generate the manifest as a static file (required for output: export).
 export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {

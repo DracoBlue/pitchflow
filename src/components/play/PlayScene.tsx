@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * M2-Spielszene: Mikrofon + Audio-Uhr + Treffer-Logik + HUD.
+ * M2 play scene: mic + audio clock + hit logic + HUD.
  *
- * Treffer: erste pendende Note, deren Zeitfenster die (latenzkorrigierte)
- * Reading-Zeit enthält und deren Tonhöhe passt. Miss: Note läuft aus dem
- * Fenster, ohne getroffen zu werden — falsche Töne lösen keinen Miss aus.
+ * Hit: the first pending note whose timing window contains the
+ * (latency-corrected) reading time and whose pitch matches. Miss: a note runs
+ * out of the window without being hit — wrong notes never trigger a miss.
  */
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -25,15 +26,21 @@ import { createGameClock, type GameClock } from "@/game/clock";
 import {
   INPUT_LATENCY_S,
   TIMING_WINDOW_S,
-  isPitchMatch,
+  evaluateHit,
   isReadingUsable,
 } from "@/game/scoring";
 import { useGameStore } from "@/game/store";
-import GameCanvas from "./GameCanvas";
+
+// Three.js/WebGL runs purely in the browser. Without ssr:false the <Canvas>
+// tries to attach events to the (not-yet-existing) DOM during static prerender
+// → „Cannot read properties of null (reading 'addEventListener')".
+const GameCanvas = dynamic(() => import("./GameCanvas"), { ssr: false });
 
 const JUDGEMENT_FLASH_S = 0.7;
-/** Pause bis zum automatischen Neustart desselben Lieds (wenn nicht perfekt). */
+/** Pause before automatically restarting the same song (if not perfect). */
 const REPLAY_DELAY_S = 15;
+/** URL hash prefix for deep links to a song: #/song/<id>. */
+const SONG_HASH = "#/song/";
 
 const DIFFICULTY_COLORS: Record<Difficulty, string> = {
   1: "bg-emerald-500",
@@ -42,7 +49,7 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
   4: "bg-red-500",
 };
 
-/** Schwierigkeit als gefüllte/leere Punkte (1–4) plus Label. */
+/** Difficulty as filled/empty dots (1–4) plus label. */
 function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   return (
     <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-400">
@@ -61,7 +68,7 @@ function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   );
 }
 
-/** Tempo-Regler 50–125 %. */
+/** Tempo control 50–125 %. */
 function TempoControl({ speed, onChange }: { speed: number; onChange: (value: number) => void }) {
   return (
     <label className="flex w-full items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5">
@@ -83,8 +90,8 @@ function TempoControl({ speed, onChange }: { speed: number; onChange: (value: nu
 }
 
 /**
- * "E2" → "E2 · Saite 6, leer" bzw. "D4" → "D4 · Saite 2, Bund 3".
- * Saite explizit (Chart) oder aus offener Saite ermittelt.
+ * "E2" → "E2 · Saite 6, leer" or "D4" → "D4 · Saite 2, Bund 3".
+ * String given explicitly (chart) or derived from the open string.
  */
 function formatNote(label: string, stringNumber?: number): string {
   const resolved = stringNumber ?? stringNumberForNote(label);
@@ -95,7 +102,8 @@ function formatNote(label: string, stringNumber?: number): string {
 }
 
 export default function PlayScene() {
-  const { status, chart, noteStates, score, combo, lastJudgement } = useGameStore();
+  const { status, chart, noteStates, score, combo, maxCombo, perfectCount, goodCount, lastJudgement } =
+    useGameStore();
   const start = useGameStore((s) => s.start);
   const judge = useGameStore((s) => s.judge);
   const reset = useGameStore((s) => s.reset);
@@ -106,7 +114,7 @@ export default function PlayScene() {
   const [liveNote, setLiveNote] = useState<string | null>(null);
   const [speed, setSpeed] = useState(1);
   const [replayIn, setReplayIn] = useState<number | null>(null);
-  // Eingebaute (gemeinfreie) Lieder + optional lokale aus public/songs.json.
+  // Built-in (public-domain) songs + optionally local ones from public/songs.json.
   const [charts, setCharts] = useState<Chart[]>(CHARTS);
   useEffect(() => {
     let active = true;
@@ -134,7 +142,7 @@ export default function PlayScene() {
     if (stream) await stream.stop();
   }, []);
 
-  // Treffer-Erkennung pro Pitch-Reading, gegen die Audio-Uhr.
+  // Hit detection per pitch reading, against the audio clock.
   const handleReading = useCallback((reading: PitchReading) => {
     const gameClock = clockRef.current;
     const state = useGameStore.getState();
@@ -145,8 +153,9 @@ export default function PlayScene() {
       if (state.noteStates[i] !== "pending") continue;
       const note = state.chart.notes[i];
       if (Math.abs(t - note.time) > TIMING_WINDOW_S) continue;
-      if (isPitchMatch(reading.frequency, note.note)) {
-        state.judge(i, "hit", gameClock.now());
+      const result = evaluateHit(note, t, reading.frequency);
+      if (result !== "miss") {
+        state.judge(i, result, gameClock.now());
         return;
       }
     }
@@ -158,7 +167,7 @@ export default function PlayScene() {
       setError(null);
       setReplayIn(null);
       try {
-        // Mikro über mehrere Versuche hinweg offen halten — flüssiger Übungs-Loop.
+        // Keep the mic open across multiple attempts — smoother practice loop.
         let stream = streamRef.current;
         if (!stream) {
           stream = await startMicPitchStream((reading) => {
@@ -171,6 +180,8 @@ export default function PlayScene() {
         clockRef.current = gameClock;
         setClock(gameClock);
         lastChartRef.current = selectedChart;
+        // Mirror the selection in the URL so a reload loads the same song.
+        window.location.hash = SONG_HASH + encodeURIComponent(selectedChart.id);
         start(scaleChartSpeed(selectedChart, speedRef.current));
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
@@ -185,9 +196,26 @@ export default function PlayScene() {
     clockRef.current = null;
     reset();
     stopMic();
+    // Reset the hash (without a new history entry), back to song selection.
+    history.replaceState(null, "", window.location.pathname + window.location.search);
   }, [reset, stopMic]);
 
-  // Miss-Sweep + HUD-Takt: läuft per rAF, liest aber nur die Audio-Uhr.
+  // Deep link: when loaded with #/song/<id>, start that song directly. Runs
+  // again on every charts update until the (possibly externally loaded) song is there.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStartedRef.current || status !== "idle") return;
+    const hash = window.location.hash;
+    if (!hash.startsWith(SONG_HASH)) return;
+    const id = decodeURIComponent(hash.slice(SONG_HASH.length));
+    const chart = charts.find((c) => c.id === id);
+    if (!chart) return;
+    autoStartedRef.current = true;
+    const t = setTimeout(() => startGame(chart), 0);
+    return () => clearTimeout(t);
+  }, [charts, status, startGame]);
+
+  // Miss sweep + HUD tick: runs via rAF, but only reads the audio clock.
   useEffect(() => {
     if (status !== "running" || !clock || !chart) return;
     let frame = 0;
@@ -212,8 +240,8 @@ export default function PlayScene() {
     return () => cancelAnimationFrame(frame);
   }, [status, clock, chart, judge]);
 
-  // Übungs-Loop: nach einem nicht-perfekten Durchlauf dasselbe Lied nach
-  // REPLAY_DELAY_S automatisch neu starten — Mikro bleibt dafür offen.
+  // Practice loop: after a non-perfect run, automatically restart the same song
+  // after REPLAY_DELAY_S — the mic stays open for it.
   useEffect(() => {
     if (status !== "finished") return;
     const states = useGameStore.getState().noteStates;
@@ -238,7 +266,7 @@ export default function PlayScene() {
     };
   }, [status, startGame]);
 
-  // Mikro stoppen, wenn die Seite verlassen wird.
+  // Stop the mic when leaving the page.
   useEffect(() => {
     return () => {
       stopMic();
@@ -246,8 +274,8 @@ export default function PlayScene() {
     };
   }, [stopMic, reset]);
 
-  // Judgement-Einblendung: Sichtbarkeit direkt aus der Spielzeit abgeleitet,
-  // gameTime tickt ohnehin pro Frame.
+  // Judgement overlay: visibility derived directly from the play time,
+  // gameTime ticks per frame anyway.
   const flashVisible =
     lastJudgement !== null && gameTime - lastJudgement.atTime < JUDGEMENT_FLASH_S;
 
@@ -274,16 +302,16 @@ export default function PlayScene() {
           )}
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
           {status === "idle" && (
-            <div className="pointer-events-auto flex max-h-full w-full max-w-md flex-col items-center gap-4 px-4 py-4">
+            <div className="pointer-events-auto flex max-h-full min-h-0 w-full max-w-md flex-col items-center gap-4 px-4 py-4 sm:max-w-2xl">
               <h1 className="text-3xl font-bold">Was willst du üben?</h1>
               <p className="text-center text-sm text-zinc-400">
                 Jede Saite hat ihre eigene Lane — links die tiefe E-Saite (6), rechts die
                 hohe (1). Auf jedem Block stehen Bund und Ton.
               </p>
               <TempoControl speed={speed} onChange={setSpeed} />
-              <div className="flex w-full flex-col gap-2.5 overflow-y-auto pr-1">
+              <div className="grid w-full min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-2">
                 {charts.map((c) => (
                   <button
                     key={c.id}
@@ -310,10 +338,18 @@ export default function PlayScene() {
             <div className="flex flex-col items-center gap-1">
               <div
                 className={`text-4xl font-bold ${
-                  lastJudgement.result === "hit" ? "text-emerald-400" : "text-red-400"
+                  lastJudgement.result === "perfect"
+                    ? "text-emerald-400"
+                    : lastJudgement.result === "good"
+                      ? "text-lime-400"
+                      : "text-red-400"
                 }`}
               >
-                {lastJudgement.result === "hit" ? "Treffer!" : "Daneben"}
+                {lastJudgement.result === "perfect"
+                  ? "Perfekt!"
+                  : lastJudgement.result === "good"
+                    ? "Gut!"
+                    : "Daneben"}
               </div>
               <div className="text-lg text-zinc-300">
                 {formatNote(
@@ -329,8 +365,29 @@ export default function PlayScene() {
               <h2 className="text-2xl font-bold">
                 {chart?.title}: {allHit ? "perfekt! 🎸" : "geschafft"}
               </h2>
-              <p className="text-zinc-300 tabular-nums">
-                {hits} / {noteStates.length} Treffer · {score} Punkte
+              <p className="text-3xl font-bold tabular-nums text-emerald-400">{score}</p>
+              <div className="flex w-full justify-center gap-4 text-center text-sm tabular-nums">
+                <div>
+                  <div className="text-lg font-semibold text-emerald-400">{perfectCount}</div>
+                  <div className="text-zinc-400">Perfekt</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-lime-400">{goodCount}</div>
+                  <div className="text-zinc-400">Gut</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-red-400">
+                    {noteStates.length - hits}
+                  </div>
+                  <div className="text-zinc-400">Daneben</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-zinc-100">×{maxCombo}</div>
+                  <div className="text-zinc-400">Max-Combo</div>
+                </div>
+              </div>
+              <p className="text-sm text-zinc-400 tabular-nums">
+                {hits} / {noteStates.length} Treffer
               </p>
               {replayIn !== null && (
                 <p className="text-sm text-zinc-400">
